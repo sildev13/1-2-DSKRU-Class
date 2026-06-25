@@ -1,0 +1,163 @@
+// Prisma schema — เว็บห้อง 1/2 (ติดตามงาน + กระดานหักคะแนน) ใช้ Neon ทั้งคู่
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== ระบบติดตามงาน =====
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  subject     String?
+  status      String    @default("TODO")
+  priority    String    @default("MEDIUM")
+  dueDate     DateTime?
+  assignee    String?
+  link        String?
+  tags        String?
+  subtasks    Subtask[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Subtask {
+  id        String   @id @default(cuid())
+  title     String
+  done      Boolean  @default(false)
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+// ===== กระดานหักคะแนน =====
+model Student {
+  id          String       @id @default(cuid())
+  name        String
+  points      Int          @default(100)
+  logs        PointLog[]
+  attendances Attendance[]
+  payments    Payment[]
+  duties      DutyAssignment[]
+  createdAt   DateTime     @default(now())
+
+  @@index([points])
+}
+
+// ===== เช็คชื่อ =====
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date      String // YYYY-MM-DD
+  status    String // PRESENT | LATE | LEAVE | ABSENT
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, date])
+  @@index([date])
+}
+
+model PointLog {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  delta     Int
+  reason    String?
+  newTotal  Int
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ===== เก็บเงินห้อง =====
+model FeeItem {
+  id        String    @id @default(cuid())
+  title     String // เช่น "เงินห้อง เทอม 1"
+  amount    Int // ยอดต่อคน (บาท)
+  payments  Payment[]
+  createdAt DateTime  @default(now())
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  feeItemId String
+  feeItem   FeeItem  @relation(fields: [feeItemId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  paid      Boolean  @default(false)
+  paidAt    DateTime?
+  updatedAt DateTime @updatedAt
+
+  @@unique([feeItemId, studentId])
+  @@index([feeItemId])
+}
+
+// ===== ตารางเวรทำความสะอาด =====
+model DutyAssignment {
+  id        String   @id @default(cuid())
+  day       String // MON | TUE | WED | THU | FRI
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([day, studentId])
+  @@index([day])
+}
+
+// ===== โหวต/สำรวจ =====
+model Poll {
+  id        String       @id @default(cuid())
+  question  String
+  closed    Boolean      @default(false)
+  options   PollOption[]
+  createdAt DateTime     @default(now())
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text   String
+  votes  Int    @default(0)
+
+  @@index([pollId])
+}
+
+// ===== กระดานประกาศ =====
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([pinned])
+}
+
+// ===== ผู้ใช้ + สิทธิ์ =====
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  name         String?
+  isHead       Boolean  @default(false) // หัวหน้า: ทำได้ทุกอย่าง + จัดการผู้ใช้
+  perms        String[] // ระบบที่แก้ได้ เช่น ["attendance","money"]
+  createdAt    DateTime @default(now())
+}
+
+// ===== ตั้งค่าระบบ (เช่น LINE group id) =====
+model Setting {
+  key   String @id
+  value String
+}

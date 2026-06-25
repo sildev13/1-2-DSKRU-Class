@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== โซน aura น้ำเงินเข้ม (ทุกระบบที่เพิ่มเข้ามา) ===== */
+#tasks-module,
+#attendance-module,
+.aura-scope {
+  --bg: 10 14 28;
+  --surface: 22 28 48;
+  --fg: 235 238 248;
+  --muted: 148 163 196;
+  --line: 44 54 84;
+  --brand: 111 140 255;
+  --brand-dark: 90 118 230;
+  --brand-soft: 38 48 88;
+  --coral: 244 130 127;
+}
+
+#tasks-module .bg-surface,
+#attendance-module .bg-surface,
+.aura-scope .bg-surface {
+  background-color: rgb(var(--surface) / 0.72);
+  backdrop-filter: blur(6px);
+}

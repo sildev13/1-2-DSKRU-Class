@@ -1,0 +1,35 @@
+/* สไตล์เฉพาะหน้า /points (กระดานหักคะแนน) — scope ใต้ .pb-root เพื่อไม่ชนกับเว็บห้อง */
+.pb-root {
+  --bg: 14 15 19;
+  --surface: 22 24 31;
+  --surface-2: 30 33 42;
+  --line: 42 46 57;
+  --text: 236 237 241;
+  --muted: 150 156 170;
+  --penalty: 255 77 94;
+  --reward: 56 211 154;
+  --crown: 255 200 87;
+
+  font-family: var(--font-body);
+  color: rgb(var(--text));
+  background:
+    radial-gradient(1100px 480px at 50% -10%, rgba(255, 77, 94, 0.07), transparent 60%),
+    rgb(var(--bg));
+  min-height: 100dvh;
+}
+
+.pb-root .tnum {
+  font-variant-numeric: tabular-nums;
+}
+.pb-root ::selection {
+  background: rgba(255, 77, 94, 0.3);
+}
+.pb-root input,
+.pb-root button {
+  font-family: inherit;
+}
+.pb-root input:focus-visible,
+.pb-root button:focus-visible {
+  outline: 2px solid rgb(var(--crown));
+  outline-offset: 2px;
+}
