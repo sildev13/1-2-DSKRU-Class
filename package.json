@@ -12,6 +12,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.0",
     "@nextui-org/button": "latest",
     "@nextui-org/card": "latest",
     "@nextui-org/dropdown": "latest",

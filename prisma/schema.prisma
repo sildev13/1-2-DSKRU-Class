@@ -161,3 +161,17 @@ model Setting {
   key   String @id
   value String
 }
+
+// ===== บันทึกผลตรวจรูปเวร (AI ผ่าน LINE) =====
+model DutySubmission {
+  id         String   @id @default(cuid())
+  date       String // YYYY-MM-DD (เวลาไทย)
+  day        String // MON | TUE | WED | THU | FRI
+  lineUserId String?
+  lineName   String?
+  clean      Boolean
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([date])
+}

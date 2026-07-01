@@ -40,12 +40,33 @@ export async function notifyLine(text) {
   return pushLine([{ type: "text", text: String(text).slice(0, 4900) }]);
 }
 
+// ตอบกลับ event หนึ่งๆ ด้วย replyToken (ใช้ใน webhook)
+export async function replyLine(replyToken, messages) {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token || !replyToken) return { ok: false, skipped: true };
+  try {
+    const res = await fetch("https://api.line.me/v2/bot/message/reply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ replyToken, messages }),
+    });
+    if (!res.ok) {
+      console.error("LINE reply failed", res.status, await res.text().catch(() => ""));
+      return { ok: false };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error("LINE reply error", e);
+    return { ok: false };
+  }
+}
+
 // การ์ดสวยๆ: แถบสีหัว + รายละเอียด + ปุ่มเปิดเว็บ
 // rows = แถวข้อความ (แถวแรกตัวหนา/ใหญ่กว่าเป็นหัวข้อหลัก)
 /**
  * @param {{accent?:string, icon?:string, title?:string, rows?:any[], path?:string, urlLabel?:string}} o
  */
-export async function notifyCard(o = {}) {
+export function buildCardBubble(o = {}) {
   const { accent = "#2563EB", icon = "🔔", title = "แจ้งเตือน", rows = [], path = "", urlLabel = "เปิดเว็บห้อง" } = o;
   const clean = rows.filter((r) => r && String(r).trim());
   const bodyContents = clean.length
@@ -60,7 +81,7 @@ export async function notifyCard(o = {}) {
       }))
     : [{ type: "text", text: "-", size: "sm", color: "#9CA3AF" }];
 
-  const bubble = {
+  return {
     type: "bubble",
     header: {
       type: "box", layout: "vertical", paddingAll: "16px", backgroundColor: accent,
@@ -78,6 +99,9 @@ export async function notifyCard(o = {}) {
     },
     styles: { footer: { separator: true } },
   };
+}
 
-  return pushLine([{ type: "flex", altText: `${icon} ${title}`, contents: bubble }]);
+export async function notifyCard(o = {}) {
+  const bubble = buildCardBubble(o);
+  return pushLine([{ type: "flex", altText: `${o.icon || "🔔"} ${o.title || "แจ้งเตือน"}`, contents: bubble }]);
 }
