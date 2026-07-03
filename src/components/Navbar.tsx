@@ -20,7 +20,7 @@ const menuItems = [
   { label: "ภาพรวม", href: "/dashboard" },
   { label: "งานของห้อง", href: "/tasks" },
   { label: "กระดานหักคะแนน", href: "/points" },
-  { label: "วงล้อสุ่มหักแต้ม", href: "/spin" },
+  { label: "วงล้อสุ่มแจก", href: "/spin" },
   { label: "เช็คชื่อ", href: "/attendance" },
   { label: "เก็บเงิน", href: "/money" },
   { label: "ประกาศ", href: "/board" },
