@@ -2,16 +2,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface Member { id: string; name: string; points: number; }
-interface LogEntry { timestamp: string; name: string; change: number; reason: string; newTotal: number; }
+interface WinEntry { timestamp: string; name: string; }
 
 const COLORS = ["#6f8cff", "#f4827f", "#38d39a", "#ffc857", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c"];
-const DEDUCT_AMOUNT = 5;
-const SPIN_REASON = "หมุนวงล้อ";
+const MIN_POINTS = 100;
 const SPIN_MS = 4200;
 
 export default function SpinPage() {
   const [members, setMembers] = useState<Member[]>([]);
-  const [log, setLog] = useState<LogEntry[]>([]);
+  const [wins, setWins] = useState<WinEntry[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,18 +22,15 @@ export default function SpinPage() {
   const load = useCallback(async () => {
     setError("");
     try {
-      const [mRes, sRes, lRes] = await Promise.all([
+      const [mRes, sRes] = await Promise.all([
         fetch("/api/members"),
         fetch("/api/session?module=points"),
-        fetch("/api/log"),
       ]);
       const m = await mRes.json();
       const s = await sRes.json();
-      const l = await lRes.json();
       if (m.error) setError(m.error);
       setMembers(m.members || []);
       setIsAdmin(Boolean(s.isAdmin));
-      setLog(Array.isArray(l.log) ? l.log.filter((e: LogEntry) => e.reason === SPIN_REASON) : []);
     } catch {
       setError("โหลดข้อมูลไม่สำเร็จ");
     } finally {
@@ -44,19 +40,21 @@ export default function SpinPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const seg = members.length > 0 ? 360 / members.length : 0;
+  const eligible = useMemo(() => members.filter((m) => m.points >= MIN_POINTS), [members]);
+
+  const seg = eligible.length > 0 ? 360 / eligible.length : 0;
   const gradient = useMemo(() => {
-    if (members.length === 0) return "none";
-    const stops = members.map((_, i) => `${COLORS[i % COLORS.length]} ${i * seg}deg ${(i + 1) * seg}deg`);
+    if (eligible.length === 0) return "none";
+    const stops = eligible.map((_, i) => `${COLORS[i % COLORS.length]} ${i * seg}deg ${(i + 1) * seg}deg`);
     return `conic-gradient(${stops.join(",")})`;
-  }, [members, seg]);
+  }, [eligible, seg]);
 
   function spin() {
-    if (spinning || members.length < 2 || !isAdmin) return;
+    if (spinning || eligible.length < 2 || !isAdmin) return;
     setError("");
     setResult(null);
-    const winnerIndex = Math.floor(Math.random() * members.length);
-    const winner = members[winnerIndex];
+    const winnerIndex = Math.floor(Math.random() * eligible.length);
+    const winner = eligible[winnerIndex];
     const targetCenter = (winnerIndex + 0.5) * seg;
     const currentMod = ((rotation % 360) + 360) % 360;
     const desiredMod = (360 - targetCenter + 360) % 360;
@@ -67,41 +65,22 @@ export default function SpinPage() {
     setRotation((r) => r + delta + extraSpins * 360);
   }
 
-  async function onTransitionEnd(e: React.TransitionEvent<HTMLDivElement>) {
+  function onTransitionEnd(e: React.TransitionEvent<HTMLDivElement>) {
     if (e.propertyName !== "transform" || !spinning) return;
     const winner = pendingWinner.current;
     pendingWinner.current = null;
-    if (!winner) { setSpinning(false); return; }
-    try {
-      const res = await fetch("/api/points", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: winner.id, change: -DEDUCT_AMOUNT, reason: SPIN_REASON }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "หักแต้มไม่สำเร็จ");
-      } else {
-        setResult({ name: data.member.name, points: data.member.points });
-        setMembers((prev) => prev.map((m) => (m.id === data.member.id ? { ...m, points: data.member.points } : m)));
-        setLog((prev) => [
-          { timestamp: new Date().toISOString(), name: data.member.name, change: -DEDUCT_AMOUNT, reason: SPIN_REASON, newTotal: data.member.points },
-          ...prev,
-        ].slice(0, 10));
-      }
-    } catch {
-      setError("เชื่อมต่อไม่สำเร็จ");
-    } finally {
-      setSpinning(false);
-    }
+    setSpinning(false);
+    if (!winner) return;
+    setResult({ name: winner.name, points: winner.points });
+    setWins((prev) => [{ timestamp: new Date().toISOString(), name: winner.name }, ...prev].slice(0, 10));
   }
 
   return (
     <div className="aura-scope mx-auto max-w-2xl px-2 pb-28 pt-4">
       <header className="mb-5">
         <p className="text-sm font-medium text-brand">ห้อง 1/2 · เกม</p>
-        <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">วงล้อสุ่มหักแต้ม</h1>
-        <p className="mt-1 text-sm text-muted">หมุนแล้วคนที่ถูกสุ่มจะโดนหัก {DEDUCT_AMOUNT} แต้มทันที</p>
+        <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">วงล้อสุ่มแจกรางวัล</h1>
+        <p className="mt-1 text-sm text-muted">หมุนแล้วคนที่ถูกสุ่มจะได้รับรางวัล (ต้องมีแต้มถึง {MIN_POINTS} ถึงจะเข้าวงล้อได้)</p>
       </header>
 
       {error && (
@@ -110,9 +89,9 @@ export default function SpinPage() {
 
       {loading ? (
         <div className="mx-auto aspect-square w-full max-w-sm animate-pulse rounded-full border border-line bg-surface" />
-      ) : members.length < 2 ? (
+      ) : eligible.length < 2 ? (
         <div className="rounded-xl2 border border-dashed border-line bg-surface p-6 text-center text-sm text-muted">
-          ต้องมีสมาชิกอย่างน้อย 2 คนในกระดานคะแนนก่อนถึงจะหมุนได้
+          ต้องมีสมาชิกที่แต้มถึง {MIN_POINTS} อย่างน้อย 2 คนก่อนถึงจะหมุนได้
         </div>
       ) : (
         <>
@@ -149,15 +128,15 @@ export default function SpinPage() {
           )}
 
           {result && (
-            <div className="mt-6 animate-risein rounded-xl2 border border-coral/40 bg-coral/10 p-4 text-center">
-              <p className="text-sm text-muted">ผลการหมุน</p>
+            <div className="mt-6 animate-risein rounded-xl2 border border-brand/40 bg-brand/10 p-4 text-center">
+              <p className="text-sm text-muted">ผลการหมุน 🎉</p>
               <p className="mt-1 text-xl font-bold text-fg">{result.name}</p>
-              <p className="mt-1 text-sm text-coral">โดนหัก {DEDUCT_AMOUNT} แต้ม → เหลือ {result.points} แต้ม</p>
+              <p className="mt-1 text-sm text-brand">รับรางวัลจากพี่หัวหน้าห้องได้เลย (Robux / คูปอง / เพชร / เงิน)</p>
             </div>
           )}
 
           <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {members.map((m, i) => (
+            {eligible.map((m, i) => (
               <div key={m.id} className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm">
                 <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
                 <span className="flex-1 truncate font-medium text-fg">{m.name}</span>
@@ -165,17 +144,23 @@ export default function SpinPage() {
               </div>
             ))}
           </div>
+
+          {members.length > eligible.length && (
+            <p className="mt-3 text-center text-xs text-muted">
+              สมาชิกที่แต้มต่ำกว่า {MIN_POINTS} จะไม่ถูกรวมในวงล้อ
+            </p>
+          )}
         </>
       )}
 
-      {log.length > 0 && (
+      {wins.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">ประวัติการหมุนล่าสุด</h2>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">ผู้โชคดีล่าสุด</h2>
           <ul className="space-y-1.5">
-            {log.map((e, i) => (
+            {wins.map((w, i) => (
               <li key={i} className="flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
-                <span className="font-medium text-fg">{e.name}</span>
-                <span className="text-coral">-{Math.abs(e.change)} แต้ม → {e.newTotal}</span>
+                <span className="font-medium text-fg">{w.name}</span>
+                <span className="text-muted">{new Date(w.timestamp).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</span>
               </li>
             ))}
           </ul>
