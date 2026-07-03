@@ -115,6 +115,22 @@ model DutyAssignment {
   @@index([day])
 }
 
+// ===== ตารางเรียน =====
+model ClassSchedule {
+  id        String   @id @default(cuid())
+  day       String // MON | TUE | WED | THU | FRI
+  period    Int // ลำดับคาบในวันนั้น (1,2,3...)
+  subject   String
+  teacher   String?
+  room      String?
+  startTime String? // เช่น "08:30"
+  endTime   String?
+  createdAt DateTime @default(now())
+
+  @@unique([day, period])
+  @@index([day])
+}
+
 // ===== โหวต/สำรวจ =====
 model Poll {
   id        String       @id @default(cuid())

@@ -8,7 +8,7 @@ const SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 export const SESSION_COOKIE = 'session';
 
 // ระบบทั้งหมดที่กำหนดสิทธิ์ได้
-export const MODULES = ['points', 'attendance', 'money', 'duty', 'vote', 'board'];
+export const MODULES = ['points', 'attendance', 'money', 'duty', 'vote', 'board', 'schedule'];
 
 export function hashPassword(plain) {
   return bcrypt.hashSync(plain, 10);

@@ -1,47 +1,35 @@
-"use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getDashboardData } from "@/lib/dashboard";
+
+export const dynamic = "force-dynamic";
 
 const DAY_TH: Record<string, string> = { MON: "จันทร์", TUE: "อังคาร", WED: "พุธ", THU: "พฤหัสบดี", FRI: "ศุกร์", SAT: "เสาร์", SUN: "อาทิตย์" };
-
-interface Data {
-  user: { username: string; name: string | null; isHead: boolean } | null;
-  tasks: { total: number; todo: number; inProgress: number; done: number; notDone: number; upcoming: { id: string; title: string; subject: string | null; dueDate: string; overdue: boolean; soon: boolean }[] };
-  dutyToday: { day: string; isWeekend: boolean; names: string[] };
-  announcements: { id: string; title: string; body: string; pinned: boolean; createdAt: string }[];
-  money: { id: string; title: string; remaining: number; outstanding: number }[];
-  topStudents: { name: string; points: number }[];
-}
 
 function fmtDue(d: string) {
   return new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 }
 
-export default function DashboardPage() {
-  const [data, setData] = useState<Data | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-
-  useEffect(() => {
-    fetch("/api/dashboard")
-      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(setData)
-      .catch(() => setErr("โหลดข้อมูลไม่สำเร็จ"))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="aura-scope mx-auto max-w-4xl px-2 pt-6"><div className="grid gap-4 sm:grid-cols-2">{[0,1,2,3].map((i)=><div key={i} className="h-40 animate-pulse rounded-xl2 border border-line bg-surface" />)}</div></div>;
-  if (err || !data) return <div className="aura-scope mx-auto max-w-md px-2 pt-16 text-center"><p className="rounded-xl2 border border-coral/30 bg-coral/5 p-8 text-coral">{err || "ไม่มีข้อมูล"}</p></div>;
-
-  const Card = ({ title, href, children }: { title: string; href: string; children: React.ReactNode }) => (
-    <div className="rounded-xl2 border border-line bg-surface p-5 shadow-card">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold text-fg">{title}</h2>
-        <Link href={href} className="text-xs text-brand hover:underline">ดูทั้งหมด →</Link>
-      </div>
-      {children}
+const Card = ({ title, href, children }: { title: string; href: string; children: React.ReactNode }) => (
+  <div className="rounded-xl2 border border-line bg-surface p-5 shadow-card">
+    <div className="mb-3 flex items-center justify-between">
+      <h2 className="font-semibold text-fg">{title}</h2>
+      <Link href={href} className="text-xs text-brand hover:underline">ดูทั้งหมด →</Link>
     </div>
-  );
+    {children}
+  </div>
+);
+
+export default async function DashboardPage() {
+  let data: Awaited<ReturnType<typeof getDashboardData>> | null = null;
+  try {
+    data = await getDashboardData();
+  } catch (e) {
+    console.error("dashboard page", e);
+  }
+
+  if (!data) {
+    return <div className="aura-scope mx-auto max-w-md px-2 pt-16 text-center"><p className="rounded-xl2 border border-coral/30 bg-coral/5 p-8 text-coral">โหลดข้อมูลไม่สำเร็จ</p></div>;
+  }
 
   return (
     <div className="aura-scope mx-auto max-w-4xl px-2 pb-28 pt-5">
@@ -76,7 +64,7 @@ export default function DashboardPage() {
                 <li key={t.id} className="flex items-center gap-2 text-sm">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${t.overdue ? "bg-coral" : t.soon ? "bg-amber-400" : "bg-brand"}`} />
                   <span className="flex-1 truncate text-fg">{t.title}{t.subject && <span className="text-muted"> · {t.subject}</span>}</span>
-                  <span className={`shrink-0 text-xs ${t.overdue ? "text-coral" : "text-muted"}`}>{t.overdue ? "เลยกำหนด" : fmtDue(t.dueDate)}</span>
+                  <span className={`shrink-0 text-xs ${t.overdue ? "text-coral" : "text-muted"}`}>{t.overdue ? "เลยกำหนด" : fmtDue(t.dueDate as unknown as string)}</span>
                 </li>
               ))}
             </ul>}

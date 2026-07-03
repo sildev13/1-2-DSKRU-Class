@@ -28,11 +28,17 @@ export async function GET(req: NextRequest) {
 
   const sections: string[] = [];
 
-  // เวรวันนี้ (ข้ามเสาร์-อาทิตย์)
+  // เวรวันนี้ + ตารางเรียนวันนี้ (ข้ามเสาร์-อาทิตย์)
   if (dayKey !== "SAT" && dayKey !== "SUN") {
     const duty = await prisma.dutyAssignment.findMany({ where: { day: dayKey }, include: { student: { select: { name: true } } } });
     const names = duty.map((d) => d.student?.name).filter(Boolean);
     if (names.length) sections.push(`🧹 เวรวันนี้: ${names.join(", ")}`);
+
+    const periods = await prisma.classSchedule.findMany({ where: { day: dayKey }, orderBy: { period: "asc" } });
+    if (periods.length) {
+      const list = periods.map((p) => `• คาบ ${p.period} ${p.subject}${p.teacher ? ` (ครู${p.teacher})` : ""}`).join("\n");
+      sections.push(`📚 วันนี้เรียน:\n${list}`);
+    }
   }
 
   // งานครบกำหนดพรุ่งนี้ (ยังไม่เสร็จ)
